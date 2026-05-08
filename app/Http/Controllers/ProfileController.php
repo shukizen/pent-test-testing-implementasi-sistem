@@ -24,12 +24,11 @@ class ProfileController extends Controller
         return view('profile.edit', compact('user'));
     }
 
-    // VULNERABLE A01: Mass assignment allows role escalation
     public function update(Request $request)
     {
         $user = Auth::user();
         // VULNERABLE A01: All fields including 'role' can be updated
-        $user->update($request->all());
+        $user->update($request->only(['name', 'email', 'phone', 'bio']));
 
         return redirect("/profile/{$user->id}")->with('success', 'Profil berhasil diupdate!');
     }

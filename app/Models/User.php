@@ -9,14 +9,18 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
-
-    // VULNERABLE A01: mass assignment - role is fillable, allowing privilege escalation
+    // ✅ FIX: Jangan biarkan 'role' bisa diisi via mass assignment
     protected $fillable = [
-        'name', 'email', 'password', 'role', 'phone', 'ssn', 'bio',
+        'name',
+        'email',
+        'password',
+        'phone',
+        'bio'
     ];
 
     protected $hidden = [
-        'password', 'remember_token',
+        'password',
+        'remember_token',
     ];
 
     protected function casts(): array
@@ -26,6 +30,7 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
 
     public function posts()
     {

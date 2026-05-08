@@ -11,8 +11,8 @@ class NoteController extends Controller
     // VULNERABLE A01: IDOR - Shows notes based on ID without ownership check
     public function index()
     {
-        // Should filter by Auth::id() but shows all notes
-        $notes = Note::with('user')->get();
+        // ✅ FIX: Hanya tampilkan notes milik user yang login
+        $notes = Note::where('user_id', Auth::id())->get();
         return view('notes.index', compact('notes'));
     }
 
@@ -20,7 +20,12 @@ class NoteController extends Controller
     public function show($id)
     {
         $note = Note::findOrFail($id);
-        // VULNERABLE: No check if note belongs to current user
+
+        // ✅ FIX: Cek kepemilikan note
+        if ($note->user_id !== Auth::id() && $note->is_private) {
+            abort(403, 'Anda tidak memiliki akses ke note ini.');
+        }
+
         return view('notes.show', compact('note'));
     }
 
@@ -45,9 +50,13 @@ class NoteController extends Controller
     public function destroy($id)
     {
         $note = Note::findOrFail($id);
-        // VULNERABLE: No ownership check
-        $note->delete();
 
+        // ✅ FIX: Cek kepemilikan
+        if ($note->user_id !== Auth::id()) {
+            abort(403, 'Anda tidak bisa menghapus note ini.');
+        }
+
+        $note->delete();
         return redirect('/notes')->with('success', 'Note berhasil dihapus!');
     }
 }

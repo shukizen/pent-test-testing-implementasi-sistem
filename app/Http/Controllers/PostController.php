@@ -59,7 +59,10 @@ class PostController extends Controller
     public function edit($id)
     {
         $post = Post::findOrFail($id);
-        // VULNERABLE A01: Missing ownership check
+        // ✅ FIX: Cek kepemilikan post
+        if ($post->user_id !== Auth::id()) {
+            abort(403, 'Anda tidak berhak mengedit post ini.');
+        }
         return view('posts.edit', compact('post'));
     }
 
@@ -67,10 +70,13 @@ class PostController extends Controller
     public function update(Request $request, $id)
     {
         $post = Post::findOrFail($id);
-        // VULNERABLE A01: Missing ownership check
-        $post->update($request->only('title', 'body', 'is_published'));
+        // ✅ FIX: Cek kepemilikan post
+        if ($post->user_id !== Auth::id()) {
+            abort(403, 'Anda tidak bisa mengedit post ini.');
+        }
 
-        return redirect("/posts/{$id}")->with('success', 'Post berhasil diupdate!');
+        $post->update($request->only('title', 'body', 'is_published'));
+        return redirect("/posts/{$id}");
     }
 
     // VULNERABLE A01: No authorization check - any user can delete any post

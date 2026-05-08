@@ -65,17 +65,21 @@ Route::middleware('auth')->group(function () {
     Route::post('/files/convert', [FileController::class, 'convertFile']);
     Route::post('/files/import', [FileController::class, 'importData']);
 
-    // Admin - VULNERABLE A01: No admin middleware, only auth required
-    Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
-    Route::get('/admin/users/search', [AdminController::class, 'searchUsers']);
-    Route::delete('/admin/users/{id}', [AdminController::class, 'deleteUser']);
-    Route::put('/admin/users/{id}/role', [AdminController::class, 'updateUserRole']);
-    Route::get('/admin/system-info', [AdminController::class, 'systemInfo']); // VULNERABLE A05
+    // Admin - SECURED with 'admin' middleware
+    Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'dashboard']);
+        Route::get('/users/search', [AdminController::class, 'searchUsers']);
+        Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+        Route::put('/users/{id}/role', [AdminController::class, 'updateUserRole']);
+        Route::get('/system-info', [AdminController::class, 'systemInfo']);
+    });
 });
 
 // API routes - VULNERABLE A01: No authentication on some endpoints
-Route::prefix('api/v1')->group(function () {
-    Route::get('/users', [ApiController::class, 'listUsers']); // VULNERABLE A01: Public user listing
+Route::prefix('api/v1')->middleware('auth')->group(function () {
+    Route::get('/users', [ApiController::class, 'listUsers']); // Hanya admin
+    // ...
+
     Route::get('/posts/search', [ApiController::class, 'searchPosts']); // VULNERABLE A03: SQLi
     Route::post('/auth/verify', [ApiController::class, 'authenticatedEndpoint']);
     Route::post('/posts/bulk-delete', [ApiController::class, 'bulkDeletePosts']); // VULNERABLE A01/A09
