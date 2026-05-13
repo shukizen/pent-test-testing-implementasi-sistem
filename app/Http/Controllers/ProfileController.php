@@ -57,15 +57,25 @@ class ProfileController extends Controller
     // VULNERABLE A01: Any user can view any user's API keys
     public function apiKeys($userId)
     {
+        // ✅ FIX A01: Pengecekan kepemilikan API keys
+        if ($userId != Auth::id() && !Auth::user()->isAdmin()) {
+            abort(403, 'Akses ditolak. Anda tidak bisa melihat API Key milik user lain.');
+        }
+
         $keys = ApiKey::where('user_id', $userId)->get();
-        return response()->json($keys); // VULNERABLE A02: Secrets exposed
+        return response()->json($keys);
     }
 
     // VULNERABLE A02: Export user data without encryption
     public function exportData($id)
     {
         $user = User::findOrFail($id);
-        // VULNERABLE A01: No ownership check
+        
+        // ✅ FIX A01: Pengecekan kepemilikan ekspor data
+        if ($id != Auth::id() && !Auth::user()->isAdmin()) {
+            abort(403, 'Akses ditolak. Anda tidak berhak mengekspor data user lain.');
+        }
+
         // VULNERABLE A02: Sensitive data (SSN, phone) exported in plaintext
         return response()->json([
             'name' => $user->name,

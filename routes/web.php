@@ -77,7 +77,7 @@ Route::middleware('auth')->group(function () {
 
 // API routes - VULNERABLE A01: No authentication on some endpoints
 Route::prefix('api/v1')->middleware('auth')->group(function () {
-    Route::get('/users', [ApiController::class, 'listUsers']); // Hanya admin
+    Route::get('/users', [ApiController::class, 'listUsers'])->middleware('admin'); // Hanya admin
     // ...
 
     Route::get('/posts/search', [ApiController::class, 'searchPosts']); // VULNERABLE A03: SQLi

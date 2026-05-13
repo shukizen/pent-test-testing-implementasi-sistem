@@ -83,7 +83,12 @@ class PostController extends Controller
     public function destroy($id)
     {
         $post = Post::findOrFail($id);
-        // VULNERABLE A01: Missing ownership check
+        
+        // ✅ FIX: Cek kepemilikan post
+        if ($post->user_id !== Auth::id()) {
+            abort(403, 'Anda tidak berhak menghapus post ini.');
+        }
+
         $post->delete();
 
         return redirect('/posts')->with('success', 'Post berhasil dihapus!');

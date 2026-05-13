@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class ApiController extends Controller
 {
@@ -52,11 +53,14 @@ class ApiController extends Controller
     public function bulkDeletePosts(Request $request)
     {
         $ids = $request->input('ids', []);
-        // VULNERABLE A01: No ownership check
-        // VULNERABLE A09: Mass deletion without audit log
-        Post::whereIn('id', $ids)->delete();
+        
+        // ✅ FIX A01: Pengecekan kepemilikan pada bulk delete
+        // Hanya hapus post yang merupakan milik user yang sedang login
+        $deletedCount = Post::whereIn('id', $ids)
+            ->where('user_id', Auth::id())
+            ->delete();
 
-        return response()->json(['message' => count($ids) . ' posts berhasil dihapus']);
+        return response()->json(['message' => $deletedCount . ' posts berhasil dihapus']);
     }
 
     // VULNERABLE A08: Accepts serialized data via API
