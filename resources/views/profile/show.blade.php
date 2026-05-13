@@ -8,9 +8,9 @@
             <tr><th>Nama</th><td>{{ $user->name }}</td></tr>
             <tr><th>Email</th><td>{{ $user->email }}</td></tr>
             <tr><th>Role</th><td>{{ $user->role }}</td></tr>
-            <tr><th>Phone</th><td>{{ $user->phone }}</td></tr>
-            {{-- VULNERABLE A02: SSN/NIK displayed in plaintext --}}
-            <tr><th>NIK/SSN</th><td>{{ $user->ssn }}</td></tr>
+            <tr><th>Phone</th><td>{{ $user->maskPhone($user->phone) ?? 'N/A' }}</td></tr>
+            {{-- ✅ FIX A02: Masking data sensitif di halaman profil --}}
+            <tr><th>NIK/SSN</th><td>{{ $user->maskSsn($user->ssn) ?? 'N/A' }}</td></tr>
             <tr><th>Bio</th><td>{!! $user->bio !!}</td></tr>
         </table>
 

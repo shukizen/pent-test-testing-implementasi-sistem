@@ -13,9 +13,21 @@ class ApiController extends Controller
     // VULNERABLE A01: API endpoint without authentication
     public function listUsers()
     {
-        // VULNERABLE A02: Exposes all user data including SSN
-        $users = User::all();
-        return response()->json($users->makeVisible(['ssn', 'phone']));
+        // ✅ FIX A02: Masking data sensitif di respon API
+        $users = User::all()->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'phone' => $user->maskPhone($user->phone),
+                'ssn' => $user->maskSsn($user->ssn),
+                'bio' => $user->bio,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+            ];
+        });
+        return response()->json($users);
     }
 
     // VULNERABLE A03: SQL injection via API

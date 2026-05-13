@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -76,23 +78,24 @@ class AuthController extends Controller
         $email = $request->input('email');
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
-            return response()->json(['message' => 'User tidak ditemukan'], 404);
+        // ✅ FIX: Jangan beritahu apakah email terdaftar atau tidak
+        // (selalu return response yang sama)
+
+        if ($user) {
+            // ✅ FIX: Gunakan token random yang kuat
+            $token = hash('sha256', Str::random(60));
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $email],
+                ['token' => bcrypt($token), 'created_at' => now()]
+            );
+
+            // ✅ FIX: Kirim token via email, JANGAN return di response
+            // Mail::to($email)->send(new ResetPasswordMail($token));
         }
 
-        // VULNERABLE A02: Predictable token using MD5
-        $token = md5($email . date('Y-m-d'));
-
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $email],
-            ['token' => $token, 'created_at' => now()]
-        );
-
-        // VULNERABLE A04: Token exposed in response (should be sent via email only)
         return response()->json([
-            'message' => 'Token reset password berhasil dibuat',
-            'token' => $token,
-            'reset_url' => url("/reset-password?token={$token}&email={$email}")
+            'message' => 'Jika email terdaftar, link reset password akan dikirim.'
         ]);
     }
 
@@ -100,10 +103,9 @@ class AuthController extends Controller
     {
         $record = DB::table('password_reset_tokens')
             ->where('email', $request->email)
-            ->where('token', $request->token)
             ->first();
 
-        if (!$record) {
+        if (!$record || !Hash::check($request->token, $record->token)) {
             return response()->json(['message' => 'Token tidak valid'], 400);
         }
 

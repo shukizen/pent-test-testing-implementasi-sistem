@@ -38,19 +38,22 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // VULNERABLE A02: Weak key generation using md5 + predictable values
-        $key = md5($user->email . time());
-        $secret = md5($user->id . date('Y-m-d'));
+        // ✅ FIX: Gunakan random string yang kuat
+        $key = 'pk_' . Str::random(40);
+        $secret = 'sk_' . Str::random(40);
 
         $apiKey = ApiKey::create([
             'user_id' => $user->id,
             'key' => $key,
-            'secret' => $secret, // VULNERABLE A02: Stored as plaintext
+            // ✅ FIX: Hash secret sebelum disimpan
+            'secret' => hash('sha256', $secret),
         ]);
 
+        // Tampilkan secret hanya SEKALI saat pembuatan
         return response()->json([
-            'key' => $apiKey->key,
-            'secret' => $apiKey->secret, // VULNERABLE A02: Secret exposed in response
+            'key' => $key,
+            'secret' => $secret,
+            'message' => 'Simpan secret ini! Tidak akan ditampilkan lagi.',
         ]);
     }
 
@@ -80,8 +83,8 @@ class ProfileController extends Controller
         return response()->json([
             'name' => $user->name,
             'email' => $user->email,
-            'phone' => $user->phone,
-            'ssn' => $user->ssn,
+            'phone' => $user->maskPhone($user->phone),
+            'ssn' => $user->maskSsn($user->ssn),
             'role' => $user->role,
             'bio' => $user->bio,
         ]);

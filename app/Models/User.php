@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class User extends Authenticatable
 {
@@ -17,6 +19,49 @@ class User extends Authenticatable
         'phone',
         'bio'
     ];
+
+    // ✅ FIX: Accessor dan Mutator untuk enkripsi SSN dengan fallback data plaintext lama
+    protected function ssn(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (!$value) return null;
+                try {
+                    return Crypt::decryptString($value);
+                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                    return $value;
+                }
+            },
+            set: fn($value) => $value ? Crypt::encryptString($value) : null,
+        );
+    }
+
+    protected function phone(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (!$value) return null;
+                try {
+                    return Crypt::decryptString($value);
+                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                    return $value;
+                }
+            },
+            set: fn($value) => $value ? Crypt::encryptString($value) : null,
+        );
+    }
+
+    public function maskSsn($ssn)
+    {
+        if (!$ssn) return null;
+        return substr($ssn, 0, 4) . '********' . substr($ssn, -4);
+    }
+
+    public function maskPhone($phone)
+    {
+        if (!$phone) return null;
+        return substr($phone, 0, 4) . '****' . substr($phone, -3);
+    }
 
     protected $hidden = [
         'password',

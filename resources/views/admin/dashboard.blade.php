@@ -40,8 +40,8 @@
                     </select>
                 </form>
             </td>
-            {{-- VULNERABLE A02: SSN/NIK displayed in admin panel --}}
-            <td>{{ $user->ssn ?? 'N/A' }}</td>
+            {{-- ✅ FIX A02: Gunakan masked_ssn --}}
+            <td>{{ $user->maskSsn($user->ssn) ?? 'N/A' }}</td>
             <td>
                 <a href="/profile/{{ $user->id }}/export" class="btn btn-sm btn-info">Export</a>
                 <form action="/admin/users/{{ $user->id }}" method="POST" class="d-inline">
