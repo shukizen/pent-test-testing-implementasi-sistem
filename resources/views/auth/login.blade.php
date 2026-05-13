@@ -18,8 +18,15 @@
                         <input type="password" name="password" class="form-control" required>
                         {{-- VULNERABLE A07: Error messages reveal if email exists --}}
                     </div>
+                    <div class="mb-3">
+                        {!! NoCaptcha::display() !!}
+                        @if ($errors->has('g-recaptcha-response'))
+                            <span class="text-danger"><small>{{ $errors->first('g-recaptcha-response') }}</small></span>
+                        @endif
+                    </div>
                     <button type="submit" class="btn btn-primary">Login</button>
                     <a href="/register" class="btn btn-link">Belum punya akun?</a>
+                    {!! NoCaptcha::renderJs() !!}
                 </form>
             </div>
         </div>

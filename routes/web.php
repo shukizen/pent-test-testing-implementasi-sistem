@@ -9,21 +9,22 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ApiController;
+use Illuminate\Support\Facades\RateLimiter;
 
 // Public routes
 Route::get('/', function () {
     return view('welcome');
 });
 
-// Auth routes - VULNERABLE A07: No rate limiting
+// Auth routes - SECURED with rate limiting (A04)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Password reset - VULNERABLE A02/A04
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+// Password reset - SECURED with rate limiting (A04)
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:forgot-password');
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Posts - some routes lack auth middleware

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
@@ -21,21 +23,51 @@ class AuthController extends Controller
     // VULNERABLE A09: No logging of failed login attempts
     public function login(Request $request)
     {
+        // ✅ FIX: Validasi captcha
+        $request->validate([
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+            'g-recaptcha-response' => 'required|captcha',
+        ]);
+
+        // ✅ FIX: Account Lockout Check
+        $key = 'login_attempts_' . $request->ip() . '_' . $request->email;
+
+        if (Cache::get($key, 0) >= 5) {
+            $minutes = Cache::get($key . '_lockout', 15);
+            return back()->withErrors([
+                'email' => "Akun terkunci. Coba lagi dalam {$minutes} menit."
+            ]);
+        }
+
         $credentials = $request->only('email', 'password');
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
+            // ✅ FIX: Reset attempts on successful login
+            Cache::forget($key);
+            Cache::forget($key . '_lockout');
+
             // VULNERABLE A09: No logging of successful login
             return redirect()->intended('/dashboard');
         }
 
+        // ✅ FIX: Increment failed attempts and set lockout duration
+        $attempts = Cache::increment($key);
+        if ($attempts == 1) {
+            Cache::put($key, 1, now()->addMinutes(15));
+        }
+        Cache::put($key . '_lockout', 15, now()->addMinutes(15));
+
+        $remaining = 5 - Cache::get($key, 0);
+
         // VULNERABLE A07: Reveals whether email exists
         $user = User::where('email', $request->email)->first();
         if ($user) {
-            return back()->withErrors(['password' => 'Password salah untuk akun ini.']);
+            return back()->withErrors(['password' => "Password salah untuk akun ini. Sisa percobaan: {$remaining}"]);
         }
 
-        return back()->withErrors(['email' => 'Email tidak ditemukan di sistem kami.']);
+        return back()->withErrors(['email' => "Email tidak ditemukan di sistem kami. Sisa percobaan: {$remaining}"]);
     }
 
     public function showRegister()
@@ -52,6 +84,7 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:1', // VULNERABLE: min 1 char password
+            'g-recaptcha-response' => 'required|captcha', // ✅ FIX: Validasi captcha
         ]);
 
         // VULNERABLE A01: Mass assignment - user can send role=admin
@@ -109,7 +142,14 @@ class AuthController extends Controller
             return response()->json(['message' => 'Token tidak valid'], 400);
         }
 
-        // VULNERABLE A04: Token never expires
+        // ✅ FIX: Check expiry (60 menit)
+        if (Carbon::parse($record->created_at)->addMinutes(60)->isPast()) {
+            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            return response()->json(['message' => 'Token sudah expired'], 400);
+        }
+        if (!Hash::check($request->token, $record->token)) {
+            return response()->json(['message' => 'Token tidak valid'], 400);
+        }
         $user = User::where('email', $request->email)->first();
         $user->password = $request->password;
         $user->save();

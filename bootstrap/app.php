@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'login',
             'forgot-password',
             'reset-password',
+            'register',
             'posts',
             'files/convert',
         ]);
