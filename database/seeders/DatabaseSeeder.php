@@ -7,21 +7,28 @@ use App\Models\Post;
 use App\Models\Note;
 use App\Models\ApiKey;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Admin user - VULNERABLE A05: Default/predictable credentials
+        // Admin user - ✅ FIX: Matikan default credentials statis dengan password dinamis acak
+        $adminPassword = Str::random(16);
         $admin = User::create([
             'name' => 'Administrator',
             'email' => 'admin@pentest.local',
-            'password' => 'admin123', // VULNERABLE A07: Weak password
+            'password' => $adminPassword, // ✅ Password random (Laravel akan auto-hash via Model Casts)
             'role' => 'admin',
             'phone' => '081234567890',
-            'ssn' => '3201234567890001', // VULNERABLE A02: NIK stored plaintext
+            'ssn' => '3201234567890001',
             'bio' => 'System Administrator',
         ]);
+        $this->command->info("----------------------------------------");
+        $this->command->info("🔑 SEEDING COMPLETED:");
+        $this->command->info("📧 Admin Email   : admin@pentest.local");
+        $this->command->info("🔒 Admin Password: {$adminPassword}");
+        $this->command->info("----------------------------------------");
 
         // Regular users
         $user1 = User::create([

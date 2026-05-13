@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'posts',
             'files/convert',
         ]);
+
+        // ✅ FIX: Daftarkan Middleware Keamanan HTTP Headers secara global
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

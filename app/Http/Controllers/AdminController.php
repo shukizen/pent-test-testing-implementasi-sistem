@@ -57,20 +57,18 @@ class AdminController extends Controller
         return redirect('/admin/dashboard')->with('success', 'Role berhasil diupdate!');
     }
 
-    // VULNERABLE A05: Exposes system information
+    // ✅ FIX: Lindungi endpoint info sistem dan hilangkan info sensitif
     public function systemInfo()
     {
+        if (!auth()->user() || !auth()->user()->isAdmin()) {
+            abort(403, 'Akses ditolak.');
+        }
+
         return response()->json([
             'php_version' => phpversion(),
             'laravel_version' => app()->version(),
             'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'CLI',
-            'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? base_path(),
-            'database' => config('database.default'),
-            'db_host' => config('database.connections.' . config('database.default') . '.host'),
-            'db_name' => config('database.connections.' . config('database.default') . '.database'),
-            'app_debug' => config('app.debug'),
-            'app_env' => config('app.env'),
-            'app_key' => config('app.key'), // VULNERABLE A05: Exposing APP_KEY
+            // ✅ SENSITIVE INFO REMOVED: app_key, db_name, database, document_root, dsb.
         ]);
     }
 }

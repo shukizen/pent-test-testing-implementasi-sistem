@@ -1,13 +1,16 @@
 <?php
 
 return [
-    // VULNERABLE A05: Overly permissive CORS configuration
-    'paths' => ['api/*', '*'],
-    'allowed_methods' => ['*'],
-    'allowed_origins' => ['*'], // VULNERABLE: Allows any origin
+    'paths' => ['api/*'],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE'],
+    // ✅ FIX: Hanya izinkan origin yang diketahui
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'https://yourapp.com',
+    ],
     'allowed_origins_patterns' => [],
-    'allowed_headers' => ['*'],
+    'allowed_headers' => ['Content-Type', 'Authorization', 'X-CSRF-TOKEN'],
     'exposed_headers' => [],
-    'max_age' => 0,
-    'supports_credentials' => true, // VULNERABLE: credentials with wildcard origin
+    'max_age' => 3600,
+    'supports_credentials' => false,
 ];
