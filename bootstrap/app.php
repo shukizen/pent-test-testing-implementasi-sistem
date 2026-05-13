@@ -16,8 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->validateCsrfTokens(except: [
+            'login',
             'forgot-password',
             'reset-password',
+            'posts',
+            'files/convert',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

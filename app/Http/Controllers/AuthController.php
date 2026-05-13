@@ -111,7 +111,7 @@ class AuthController extends Controller
 
         // VULNERABLE A04: Token never expires
         $user = User::where('email', $request->email)->first();
-        $user->password = bcrypt($request->password);
+        $user->password = $request->password;
         $user->save();
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();

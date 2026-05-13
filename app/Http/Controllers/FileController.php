@@ -74,13 +74,32 @@ class FileController extends Controller
     {
         $filename = $request->input('filename');
 
-        // VULNERABLE A03: Command injection - user input directly in shell command
-        $output = shell_exec("file storage/app/public/uploads/" . $filename);
+        // ✅ FIX: Validasi filename - hanya alfanumerik, titik, dan dash
+        if (!preg_match('/^[a-zA-Z0-9._-]+$/', $filename)) {
+            return response()->json(['error' => 'Nama file tidak valid'], 400);
+        }
+
+        // ✅ FIX: Pastikan file ada di direktori yang benar
+        $path = storage_path('app/public/uploads/' . $filename);
+        if (!file_exists($path)) {
+            return response()->json(['error' => 'File tidak ditemukan'], 404);
+        }
+
+        // ✅ FIX: Gunakan PHP native function, bukan shell command
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $path);
+        $fileSize = filesize($path);
+        finfo_close($finfo);
 
         return response()->json([
-            'file_info' => $output,
+            'file_info' => [
+                'name' => $filename,
+                'mime' => $mimeType,
+                'size' => $fileSize,
+            ]
         ]);
     }
+
 
     // VULNERABLE A08: Insecure deserialization
     public function importData(Request $request)

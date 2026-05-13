@@ -7,8 +7,8 @@
         <small>Oleh: {{ $post->user->name }} | {{ $post->created_at->diffForHumans() }}</small>
     </div>
     <div class="card-body">
-        {{-- VULNERABLE A03: Stored XSS - rendering user HTML unescaped --}}
-        <div>{!! $post->body !!}</div>
+        {{-- ✅ FIX: Render HTML yang sudah disanitasi dengan clean() --}}
+        <div>{!! clean($post->body) !!}</div>
     </div>
 </div>
 <a href="/posts" class="btn btn-secondary mt-3">Kembali</a>

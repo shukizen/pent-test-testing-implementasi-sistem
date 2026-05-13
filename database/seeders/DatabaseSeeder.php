@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
         $admin = User::create([
             'name' => 'Administrator',
             'email' => 'admin@pentest.local',
-            'password' => bcrypt('admin123'), // VULNERABLE A07: Weak password
+            'password' => 'admin123', // VULNERABLE A07: Weak password
             'role' => 'admin',
             'phone' => '081234567890',
             'ssn' => '3201234567890001', // VULNERABLE A02: NIK stored plaintext
@@ -27,7 +27,7 @@ class DatabaseSeeder extends Seeder
         $user1 = User::create([
             'name' => 'Budi Santoso',
             'email' => 'budi@pentest.local',
-            'password' => bcrypt('password'), // VULNERABLE A07: Common password
+            'password' => 'password', // VULNERABLE A07: Common password
             'role' => 'user',
             'phone' => '081234567891',
             'ssn' => '3201234567890002',
@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
         $user2 = User::create([
             'name' => 'Siti Nurhaliza',
             'email' => 'siti@pentest.local',
-            'password' => bcrypt('123456'), // VULNERABLE A07: Common password
+            'password' => '123456', // VULNERABLE A07: Common password
             'role' => 'user',
             'phone' => '081234567892',
             'ssn' => '3201234567890003',
@@ -47,7 +47,7 @@ class DatabaseSeeder extends Seeder
         $user3 = User::create([
             'name' => 'Andi Wijaya',
             'email' => 'andi@pentest.local',
-            'password' => bcrypt('qwerty'), // VULNERABLE A07: Common password
+            'password' => 'qwerty', // VULNERABLE A07: Common password
             'role' => 'editor',
             'phone' => '081234567893',
             'ssn' => '3201234567890004',

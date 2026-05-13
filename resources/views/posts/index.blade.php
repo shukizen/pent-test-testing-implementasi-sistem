@@ -22,8 +22,8 @@
             <h5 class="card-title">
                 <a href="/posts/{{ $post->id ?? $post->id }}">{{ $post->title }}</a>
             </h5>
-            {{-- VULNERABLE A03: XSS - rendering HTML without escaping --}}
-            <div class="card-text">{!! Str::limit($post->body ?? $post->body, 200) !!}</div>
+            {{-- ✅ FIX: Render HTML yang disanitasi dengan clean() --}}
+            <div class="card-text">{!! clean(Str::limit($post->body ?? $post->body, 200)) !!}</div>
             <small class="text-muted">
                 Oleh: {{ $post->user->name ?? $post->author_name ?? 'Unknown' }}
             </small>

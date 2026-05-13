@@ -6,6 +6,7 @@ use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Mews\Purifier\Facades\Purifier;
 
 class PostController extends Controller
 {
@@ -20,8 +21,14 @@ class PostController extends Controller
     {
         $keyword = $request->input('q');
 
-        // VULNERABLE A03: Direct string concatenation in raw SQL
-        $posts = DB::select("SELECT posts.*, users.name as author_name FROM posts JOIN users ON posts.user_id = users.id WHERE posts.title LIKE '%" . $keyword . "%' OR posts.body LIKE '%" . $keyword . "%'");
+        // ✅ FIX: Gunakan Eloquent dengan parameter binding dan query grouping
+        $posts = Post::with('user')
+            ->where(function ($query) use ($keyword) {
+                $query->where('title', 'LIKE', '%' . $keyword . '%')
+                      ->orWhere('body', 'LIKE', '%' . $keyword . '%');
+            })
+            ->where('is_published', true)
+            ->get();
 
         return view('posts.index', ['posts' => $posts, 'keyword' => $keyword]);
     }
@@ -47,8 +54,8 @@ class PostController extends Controller
 
         Post::create([
             'user_id' => Auth::id(),
-            'title' => $request->title,
-            'body' => $request->body, // VULNERABLE: No XSS sanitization
+            'title' => strip_tags($request->title),
+            'body' => Purifier::clean($request->body), // ✅ Sanitize HTML input
             'is_published' => $request->has('is_published'),
         ]);
 
@@ -75,7 +82,11 @@ class PostController extends Controller
             abort(403, 'Anda tidak bisa mengedit post ini.');
         }
 
-        $post->update($request->only('title', 'body', 'is_published'));
+        $post->update([
+            'title' => strip_tags($request->title),
+            'body' => Purifier::clean($request->body), // ✅ Sanitize HTML input
+            'is_published' => $request->has('is_published'),
+        ]);
         return redirect("/posts/{$id}");
     }
 
@@ -83,7 +94,7 @@ class PostController extends Controller
     public function destroy($id)
     {
         $post = Post::findOrFail($id);
-        
+
         // ✅ FIX: Cek kepemilikan post
         if ($post->user_id !== Auth::id()) {
             abort(403, 'Anda tidak berhak menghapus post ini.');
