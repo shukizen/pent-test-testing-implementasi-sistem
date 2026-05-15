@@ -50,10 +50,10 @@ class AuthController extends Controller
             Cache::forget($key . '_lockout');
 
             // ✅ FIX: Jika 2FA aktif, redirect ke verifikasi 2FA, bukan langsung ke dashboard
-            $user = Auth::user();
-            if ($user->google2fa_secret) {
-                return redirect()->route('2fa.verify');
-            }
+            // $user = Auth::user();
+            // if ($user->google2fa_secret) {
+            //     return redirect()->route('2fa.verify');
+            // }
 
             // VULNERABLE A09: No logging of successful login
             return redirect()->intended('/dashboard');

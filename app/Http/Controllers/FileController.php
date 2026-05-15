@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class FileController extends Controller
 {
@@ -18,17 +19,30 @@ class FileController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'file' => 'required|file', // VULNERABLE A08: No mime type or extension validation
+            'file' => [
+                'required',
+                'file',
+                'max:10240', // ✅ Max 10MB
+                'mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx', // ✅ Whitelist ekstensi
+                // ✅ Atau gunakan MIME type validation:
+                'mimetypes:image/jpeg,image/png,image/gif,application/pdf',
+            ],
         ]);
 
         $file = $request->file('file');
-        // VULNERABLE A08: Original filename used (path traversal possible)
-        $path = $file->storeAs('uploads', $file->getClientOriginalName(), 'public');
+
+        // ✅ FIX: Generate random filename (jangan pakai nama asli)
+        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+
+        // ✅ FIX: Simpan di storage, bukan di public
+        $path = $file->storeAs('uploads', $filename, 'local'); // Bukan 'public'!
+
+        // ✅ FIX: Scan file (opsional - ClamAV integration)
+        // $this->scanForVirus($path);
 
         return response()->json([
             'message' => 'File berhasil diupload!',
-            'path' => Storage::url($path),
-            'filename' => $file->getClientOriginalName(),
+            'filename' => $filename,
         ]);
     }
 
@@ -106,12 +120,23 @@ class FileController extends Controller
     {
         $data = $request->input('data');
 
-        // VULNERABLE A08: Unserializing user input
+        // ✅ FIX: Gunakan JSON, BUKAN unserialize()
         try {
-            $importedData = unserialize(base64_decode($data));
+            $importedData = json_decode(base64_decode($data), true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return response()->json(['error' => 'Format JSON tidak valid'], 400);
+            }
+
+            // ✅ FIX: Validasi struktur data
+            $validated = validator($importedData, [
+                'name' => 'required|string|max:255',
+                'email' => 'required|email',
+            ])->validate();
+
             return response()->json([
                 'message' => 'Data berhasil diimport!',
-                'data' => $importedData,
+                'data' => $validated,
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Format data tidak valid'], 400);

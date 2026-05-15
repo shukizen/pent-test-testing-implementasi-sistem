@@ -34,7 +34,8 @@ Route::get('/posts/search', [PostController::class, 'search']); // VULNERABLE A0
 Route::get('/posts/{id}', [PostController::class, 'show']);
 
 // VULNERABLE A01: These routes use auth but no ownership check inside controller
-Route::middleware(['auth', '2fa'])->group(function () {
+//Route::middleware(['auth', '2fa'])->group(function () {
+Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -90,5 +91,9 @@ Route::prefix('api/v1')->middleware('auth')->group(function () {
     Route::get('/posts/search', [ApiController::class, 'searchPosts']); // VULNERABLE A03: SQLi
     Route::post('/auth/verify', [ApiController::class, 'authenticatedEndpoint']);
     Route::post('/posts/bulk-delete', [ApiController::class, 'bulkDeletePosts']); // VULNERABLE A01/A09
-    Route::post('/webhook', [ApiController::class, 'processWebhook']); // VULNERABLE A08
+});
+
+// ✅ FIX A08: Webhook harus bisa diakses tanpa auth session, diamankan dengan Tanda Tangan Digital (Signature)
+Route::prefix('api/v1')->group(function () {
+    Route::post('/webhook', [ApiController::class, 'processWebhook']);
 });

@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'register',
             'posts',
             'files/convert',
+            'api/v1/webhook',
         ]);
 
         // ✅ FIX: Daftarkan Middleware Keamanan HTTP Headers secara global

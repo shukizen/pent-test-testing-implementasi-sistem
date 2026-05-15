@@ -65,7 +65,7 @@ class ApiController extends Controller
     public function bulkDeletePosts(Request $request)
     {
         $ids = $request->input('ids', []);
-        
+
         // ✅ FIX A01: Pengecekan kepemilikan pada bulk delete
         // Hanya hapus post yang merupakan milik user yang sedang login
         $deletedCount = Post::whereIn('id', $ids)
@@ -75,17 +75,44 @@ class ApiController extends Controller
         return response()->json(['message' => $deletedCount . ' posts berhasil dihapus']);
     }
 
-    // VULNERABLE A08: Accepts serialized data via API
+
     public function processWebhook(Request $request)
     {
-        $payload = $request->input('payload');
-
-        // VULNERABLE A08: Deserializing untrusted data
-        if ($payload) {
-            $data = unserialize(base64_decode($payload));
-            return response()->json(['processed' => $data]);
+        // ✅ FIX: Verifikasi signature
+        $signature = $request->header('X-Webhook-Signature');
+        
+        // ✅ Tambahan Keamanan: Cegah TypeError di PHP 8.3 jika header kosong
+        if (!$signature) {
+            return response()->json(['error' => 'Signature tidak valid'], 401);
         }
 
-        return response()->json(['error' => 'Payload diperlukan'], 400);
+        $payload = $request->getContent();
+        // ✅ Fallback ke default secret sesuai dokumentasi jika belum didefinisikan di config
+        $secret = config('services.webhook.secret', 'your-webhook-secret');
+
+        $expectedSignature = hash_hmac('sha256', $payload, $secret);
+
+        if (!hash_equals($expectedSignature, $signature)) {
+            return response()->json(['error' => 'Signature tidak valid'], 401);
+        }
+
+        // ✅ FIX: Gunakan JSON decode, bukan unserialize
+        $data = json_decode($payload, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+             return response()->json(['error' => 'Format JSON tidak valid'], 400);
+        }
+
+        // ✅ FIX: Validasi struktur data
+        try {
+            $validated = validator($data, [
+                'event' => 'required|string|in:order.created,payment.received',
+                'data' => 'required|array',
+            ])->validate();
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Struktur data tidak valid'], 400);
+        }
+
+        return response()->json(['processed' => $validated]);
     }
 }
