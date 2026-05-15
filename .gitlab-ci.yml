@@ -1,0 +1,4 @@
+security_audit:
+  script:
+    - composer audit --format=json
+  allow_failure: false

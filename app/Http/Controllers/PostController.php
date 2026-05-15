@@ -25,7 +25,7 @@ class PostController extends Controller
         $posts = Post::with('user')
             ->where(function ($query) use ($keyword) {
                 $query->where('title', 'LIKE', '%' . $keyword . '%')
-                      ->orWhere('body', 'LIKE', '%' . $keyword . '%');
+                    ->orWhere('body', 'LIKE', '%' . $keyword . '%');
             })
             ->where('is_published', true)
             ->get();
