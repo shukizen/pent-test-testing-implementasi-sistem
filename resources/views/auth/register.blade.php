@@ -20,14 +20,14 @@
                         <label>Password</label>
                         {{-- VULNERABLE A07: No password strength indicator --}}
                         <input type="password" name="password" class="form-control" required>
-                        <small class="text-muted">Minimal 1 karakter</small>
+                        <small class="text-muted">Minimal 8 karakter</small>
                     </div>
                     {{-- VULNERABLE A01: Hidden field that can be manipulated --}}
                     <input type="hidden" name="role" value="user">
                     <div class="mb-3">
                         {!! NoCaptcha::display() !!}
                         @if ($errors->has('g-recaptcha-response'))
-                            <span class="text-danger"><small>{{ $errors->first('g-recaptcha-response') }}</small></span>
+                        <span class="text-danger"><small>{{ $errors->first('g-recaptcha-response') }}</small></span>
                         @endif
                     </div>
                     <button type="submit" class="btn btn-primary">Register</button>

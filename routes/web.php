@@ -18,7 +18,8 @@ Route::get('/', function () {
 
 // Auth routes - SECURED with rate limiting (A04)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/login', [AuthController::class, 'login'])
+    ->middleware('throttle:login'); // ✅ Menggunakan custom rate limiter 'login' dengan pesan kesalahan khusus
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -33,7 +34,7 @@ Route::get('/posts/search', [PostController::class, 'search']); // VULNERABLE A0
 Route::get('/posts/{id}', [PostController::class, 'show']);
 
 // VULNERABLE A01: These routes use auth but no ownership check inside controller
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', '2fa'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -65,6 +66,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/files/proxy-image', [FileController::class, 'proxyImage']);
     Route::post('/files/convert', [FileController::class, 'convertFile']);
     Route::post('/files/import', [FileController::class, 'importData']);
+
+    // 2FA (MFA) - SECURED (A07)
+    Route::get('/2fa-setup', [AuthController::class, 'enable2FA'])->name('2fa.setup');
+    Route::get('/2fa-verify', [AuthController::class, 'show2FAVerify'])->name('2fa.verify');
+    Route::post('/2fa-verify', [AuthController::class, 'verify2FA']);
 
     // Admin - SECURED with 'admin' middleware
     Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {

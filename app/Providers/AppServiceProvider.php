@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,7 +24,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip() . '|' . $request->input('email'));
+            $key = Str::lower($request->input('email')) . '|' . $request->ip();
+            return Limit::perMinute(5)->by($key);
         });
 
         RateLimiter::for('register', function (Request $request) {

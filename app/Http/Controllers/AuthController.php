@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use PragmaRX\Google2FA\Google2FA;
 
 class AuthController extends Controller
 {
@@ -48,9 +49,16 @@ class AuthController extends Controller
             Cache::forget($key);
             Cache::forget($key . '_lockout');
 
+            // ✅ FIX: Jika 2FA aktif, redirect ke verifikasi 2FA, bukan langsung ke dashboard
+            $user = Auth::user();
+            if ($user->google2fa_secret) {
+                return redirect()->route('2fa.verify');
+            }
+
             // VULNERABLE A09: No logging of successful login
             return redirect()->intended('/dashboard');
         }
+
 
         // ✅ FIX: Increment failed attempts and set lockout duration
         $attempts = Cache::increment($key);
@@ -61,13 +69,13 @@ class AuthController extends Controller
 
         $remaining = 5 - Cache::get($key, 0);
 
-        // VULNERABLE A07: Reveals whether email exists
-        $user = User::where('email', $request->email)->first();
-        if ($user) {
-            return back()->withErrors(['password' => "Password salah untuk akun ini. Sisa percobaan: {$remaining}"]);
-        }
-
-        return back()->withErrors(['email' => "Email tidak ditemukan di sistem kami. Sisa percobaan: {$remaining}"]);
+        // ✅ FIX: Pesan error yang SAMA untuk semua kasus (Mencegah Username Enumeration)
+        // ✅ FIX: Pesan error yang SAMA untuk semua kasus
+        return back()->withErrors([
+            'email' => 'Email atau password tidak valid.',
+        ]);
+        // Jangan bedakan antara "email tidak ada" dan "password salah"
+        // return back()->withErrors(['email' => "Email tidak ditemukan di sistem kami. Sisa percobaan: {$remaining}"]);
     }
 
     public function showRegister()
@@ -83,12 +91,30 @@ class AuthController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:1', // VULNERABLE: min 1 char password
             'g-recaptcha-response' => 'required|captcha', // ✅ FIX: Validasi captcha
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed', // Butuh field password_confirmation
+                'regex:/[a-z]/',      // Minimal 1 huruf kecil
+                'regex:/[A-Z]/',      // Minimal 1 huruf besar
+                'regex:/[0-9]/',      // Minimal 1 angka
+                'regex:/[@$!%*#?&]/', // Minimal 1 special character
+            ],
+        ], [
+            'password.min' => 'Password minimal 8 karakter.',
+            'password.regex' => 'Password harus mengandung huruf besar, huruf kecil, angka, dan karakter spesial.',
         ]);
 
         // VULNERABLE A01: Mass assignment - user can send role=admin
-        $user = User::create($request->all());
+        // ✅ FIX: Jangan gunakan $request->all() - tentukan field spesifik
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+            'role' => 'user', // Hardcode role
+        ]);
 
         Auth::login($user);
 
@@ -157,5 +183,49 @@ class AuthController extends Controller
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         return response()->json(['message' => 'Password berhasil direset']);
+    }
+
+    public function enable2FA(Request $request)
+    {
+        $google2fa = new Google2FA();
+        $secret = $google2fa->generateSecretKey();
+
+        $user = Auth::user();
+        $user->google2fa_secret = $secret;
+        $user->save();
+
+        $qrCodeUrl = $google2fa->getQRCodeUrl(
+            config('app.name'),
+            $user->email,
+            $secret
+        );
+
+        return view('auth.2fa-setup', compact('qrCodeUrl', 'secret'));
+    }
+
+    public function show2FAVerify()
+    {
+        return view('auth.2fa-verify');
+    }
+
+    public function verify2FA(Request $request)
+    {
+        $request->validate([
+            'one_time_password' => 'required|string|size:6',
+        ]);
+
+        $google2fa = new Google2FA();
+        $user = Auth::user();
+
+        // Verifikasi OTP yang diinput dengan Kunci Rahasia di database
+        $valid = $google2fa->verifyKey($user->google2fa_secret, $request->one_time_password);
+
+        if ($valid) {
+            // Tandai di session bahwa user berhasil melewati tantangan 2FA
+            $request->session()->put('2fa_verified', true);
+            return redirect()->intended('/dashboard');
+        }
+
+        return back()->with('error', 'Kode OTP salah atau sudah kedaluwarsa.');
     }
 }
