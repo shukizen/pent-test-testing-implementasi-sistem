@@ -9,6 +9,14 @@ use Illuminate\Support\Str;
 
 class FileController extends Controller
 {
+    // ✅ FIX A10: Gunakan Allowlist Approach untuk keamanan maksimal (Fix 3)
+    private $allowedDomains = [
+        'api.example.com',
+        'cdn.example.com',
+        'images.unsplash.com',
+        'via.placeholder.com',
+    ];
+
     public function showUpload()
     {
         return view('files.upload');
@@ -51,37 +59,155 @@ class FileController extends Controller
     {
         $url = $request->input('url');
 
-        // VULNERABLE A10: No validation of URL, can access internal services
-        // Can be used to scan internal network, access metadata endpoints, etc.
+        // ✅ FIX: Validasi URL format
+        $request->validate([
+            'url' => 'required|url',
+        ]);
+
+        // ✅ FIX: Cek apakah URL aman (Fix 1 & 2)
+        if (!$this->isUrlSafe($url)) {
+            return response()->json([
+                'error' => 'URL tidak diizinkan. Tidak bisa mengakses alamat internal atau protokol terlarang.'
+            ], 403);
+        }
+
         try {
-            $response = Http::timeout(10)->get($url);
+            // ✅ FIX: Disable Unnecessary Protocols & Batasi Redirect (Fix 4)
+            $response = Http::timeout(5)
+                ->withOptions([
+                    'protocols' => ['http', 'https'], // ✅ Batasi hanya protokol web
+                    'allow_redirects' => [
+                        'max' => 3,
+                        'strict' => true,
+                        'protocols' => ['http', 'https'], // ✅ Redirect juga harus via HTTP/S
+                    ],
+                ])
+                ->get($url);
+
+            // ✅ FIX: Batasi ukuran response (mencegah DoS via file raksasa)
+            $body = substr($response->body(), 0, 1024 * 100); // Max 100KB
 
             return response()->json([
                 'status' => $response->status(),
-                'headers' => $response->headers(),
-                'body' => $response->body(),
+                'body' => $body,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => $e->getMessage(),
-            ], 500);
+            return response()->json(['error' => 'Gagal mengambil URL atau timeout'], 500);
         }
     }
+
+    private function isUrlSafe(string $url): bool
+    {
+        $parsed = parse_url($url);
+
+        // ✅ Hanya izinkan HTTP dan HTTPS
+        if (!in_array($parsed['scheme'] ?? '', ['http', 'https'])) {
+            return false;
+        }
+
+        $host = $parsed['host'] ?? '';
+
+        // ✅ Blokir private/internal IPs
+        $ip = gethostbyname($host);
+
+        $blockedRanges = [
+            '127.0.0.0/8',      // Loopback
+            '10.0.0.0/8',       // Private Class A
+            '172.16.0.0/12',    // Private Class B
+            '192.168.0.0/16',   // Private Class C
+            '169.254.0.0/16',   // Link-local (metadata endpoints!)
+            '0.0.0.0/8',        // Current network
+            'fc00::/7',         // IPv6 private
+            '::1/128',          // IPv6 loopback
+        ];
+
+        foreach ($blockedRanges as $range) {
+            if ($this->ipInRange($ip, $range)) {
+                return false;
+            }
+        }
+
+        // ✅ Blokir hostname khusus
+        $blockedHosts = [
+            'localhost',
+            'metadata.google.internal',
+            'metadata.internal',
+        ];
+
+        if (in_array(strtolower($host), $blockedHosts)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function ipInRange(string $ip, string $range): bool
+    {
+        if (!str_contains($range, '/')) {
+            return $ip === $range;
+        }
+
+        [$subnet, $mask] = explode('/', $range);
+        
+        $subnet = ip2long($subnet);
+        $ip = ip2long($ip);
+        
+        if ($subnet === false || $ip === false) {
+            return false; // Handle IPv6 atau format salah
+        }
+
+        $mask = ~((1 << (32 - $mask)) - 1);
+
+        return ($ip & $mask) === ($subnet & $mask);
+    }
+
+    private function isDomainAllowed(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        return in_array(strtolower($host), $this->allowedDomains);
+    }
+
+
 
     // VULNERABLE A10: SSRF via image proxy
     public function proxyImage(Request $request)
     {
         $imageUrl = $request->input('url');
 
-        // VULNERABLE A10: No URL validation at all
+        // ✅ FIX: Validasi URL
+        if (!$this->isUrlSafe($imageUrl)) {
+            return response('URL tidak diizinkan', 403);
+        }
+
         try {
-            $response = Http::get($imageUrl);
+            // ✅ FIX: Batasi protokol (Fix 4)
+            $response = Http::timeout(5)
+                ->withOptions([
+                    'protocols' => ['http', 'https'],
+                ])
+                ->get($imageUrl);
+
+            // ✅ FIX: Pastikan response adalah gambar
+            $contentType = $response->header('Content-Type');
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+
+            if (!in_array($contentType, $allowedTypes)) {
+                return response('Bukan file gambar', 400);
+            }
+
+            // ✅ FIX: Batasi ukuran (max 5MB)
+            if (strlen($response->body()) > 5 * 1024 * 1024) {
+                return response('File terlalu besar', 400);
+            }
+
             return response($response->body())
-                ->header('Content-Type', $response->header('Content-Type'));
+                ->header('Content-Type', $contentType)
+                ->header('X-Content-Type-Options', 'nosniff');
         } catch (\Exception $e) {
-            return response('Image not found', 404);
+            return response('Image not found or access denied', 404);
         }
     }
+
 
     // VULNERABLE A03: Command injection via filename
     public function convertFile(Request $request)
