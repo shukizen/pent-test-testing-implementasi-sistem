@@ -73,6 +73,13 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/security.log'),
+            'level' => 'info',
+            'days' => 90, // Simpan log 90 hari
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

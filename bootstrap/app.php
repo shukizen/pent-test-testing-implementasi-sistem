@@ -29,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // ✅ FIX: Daftarkan Middleware Keamanan HTTP Headers secara global
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
+        // ✅ FIX A09: Daftarkan Middleware Deteksi SQL Injection secara global
+        $middleware->append(\App\Http\Middleware\DetectSQLInjection::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use PragmaRX\Google2FA\Google2FA;
+use App\Services\SecurityLogger;
 
 class AuthController extends Controller
 {
@@ -55,10 +56,15 @@ class AuthController extends Controller
             //     return redirect()->route('2fa.verify');
             // }
 
-            // VULNERABLE A09: No logging of successful login
+            // ✅ FIX A09: Log login berhasil ke Security Log
+            SecurityLogger::authSuccess(Auth::user(), $request->ip());
+
             return redirect()->intended('/dashboard');
         }
 
+
+        // ✅ FIX A09: Log login gagal ke Security Log
+        SecurityLogger::authFailed($request->input('email'), $request->ip());
 
         // ✅ FIX: Increment failed attempts and set lockout duration
         $attempts = Cache::increment($key);

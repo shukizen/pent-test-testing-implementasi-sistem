@@ -79,6 +79,10 @@ class ProfileController extends Controller
             abort(403, 'Akses ditolak. Anda tidak berhak mengekspor data user lain.');
         }
 
+        // ✅ FIX A09: Log data export
+        \App\Services\SecurityLogger::dataExport(\Illuminate\Support\Facades\Auth::id(), $user->id, request()->ip());
+
+
         // VULNERABLE A02: Sensitive data (SSN, phone) exported in plaintext
         return response()->json([
             'name' => $user->name,

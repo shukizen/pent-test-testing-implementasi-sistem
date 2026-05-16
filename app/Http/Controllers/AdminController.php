@@ -7,6 +7,8 @@ use App\Models\Post;
 use App\Models\Note;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\SecurityLogger;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
@@ -42,6 +44,10 @@ class AdminController extends Controller
     public function deleteUser($id)
     {
         $user = User::findOrFail($id);
+
+        // ✅ FIX A09: Log user deletion audit
+        SecurityLogger::userDeleted(Auth::id(), $user->id, $user->email);
+
         $user->delete();
 
         return redirect('/admin/dashboard')->with('success', 'User berhasil dihapus!');
@@ -51,8 +57,13 @@ class AdminController extends Controller
     public function updateUserRole(Request $request, $id)
     {
         $user = User::findOrFail($id);
+        $oldRole = $user->role;
+
         $user->role = $request->input('role');
         $user->save();
+
+        // ✅ FIX A09: Log user privilege role change
+        SecurityLogger::privilegeChange(Auth::id(), $user->id, $oldRole, $user->role);
 
         return redirect('/admin/dashboard')->with('success', 'Role berhasil diupdate!');
     }
